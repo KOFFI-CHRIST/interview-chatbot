@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation d'Entretien d'Embauche</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #chat-container {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        .bot-message {
+            background-color: #e1f5fe;
+            margin-right: auto;
+        }
+        .user-message {
+            background-color: #e8f5e9;
+            margin-left: auto;
+            text-align: right;
+        }
+        #message-form {
+            display: flex;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px 0 0 5px;
+        }
+        #send-button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+        }
+        #send-button:hover {
+            background-color: #45a049;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simulation d'Entretien d'Embauche</h1>
+    <p>Ce chatbot va simuler un entretien d'embauche et vous donner des conseils sur vos réponses.</p>
+    
+    <div id="chat-container"></div>
+    
+    <div id="loader" class="loader"></div>
+    
+    <form id="message-form">
+        <input type="text" id="message-input" placeholder="Tapez votre réponse ici..." autocomplete="off">
+        <button type="submit" id="send-button">Envoyer</button>
+    </form>
+    
+    <script>
+        // URL du webhook n8n - À REMPLACER par votre URL
+        const WEBHOOK_URL = 'https://futureshot.app.n8n.cloud/webhook-test/chatbot';
+        
+        // Variables pour stocker l'état du workflow
+        let workflowState = {
+            currentStep: 0,
+            answers: []
+        };
+        
+        // Éléments du DOM
+        const chatContainer = document.getElementById('chat-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const loader = document.getElementById('loader');
+        
+        // Fonction pour ajouter un message au chat
+        function addMessage(text, isBot = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
+            
+            // Pour conserver le formatage du texte des messages du bot
+            if (isBot) {
+                const content = document.createElement('pre');
+                content.innerText = text;
+                messageDiv.appendChild(content);
+            } else {
+                messageDiv.textContent = text;
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Fonction pour envoyer un message au webhook
+        async function sendMessage(message) {
+            loader.style.display = 'block';
+            
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        workflow: workflowState
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Mettre à jour l'état du workflow
+                workflowState = data.workflow;
+                
+                // Afficher la réponse du bot
+                addMessage(data.text, true);
+            } catch (error) {
+                console.error('Erreur lors de l\'envoi du message:', error);
+                addMessage('Désolé, une erreur est survenue. Veuillez réessayer.', true);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+        
+        // Gestionnaire d'événements pour le formulaire
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const message = messageInput.value.trim();
+            if (message) {
+                addMessage(message);
+                messageInput.value = '';
+                sendMessage(message);
+            }
+        });
+        
+        // Démarrer la conversation en envoyant un message vide au démarrage
+        window.addEventListener('load', () => {
+            sendMessage('');
+        });
+    </script>
+</body>
+</html>
